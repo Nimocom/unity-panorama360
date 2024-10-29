@@ -1,30 +1,120 @@
 <!DOCTYPE html>
 <html lang="en-us">
-  <head>
+<head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity WebGL Player | WebGL Test AR</title>
-    <script src="js/lib/aframe.min.js"></script>
-    <script src="js/lib/aframe-ar.js"></script>
-    <script src="Build/UnityLoader.js"></script>
-    <script src="js/app.js"></script>
+    <title>Unity WebGL Player | PortalsOCV</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+</head>
+<body>
+    <div id="unity-container" class="unity-desktop">
+        <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
+        <div id="unity-loading-bar">
+            <div id="unity-logo"></div>
+            <div id="unity-progress-bar-empty">
+                <div id="unity-progress-bar-full"></div>
+            </div>
+        </div>
+        <div id="unity-warning"> </div>
+        <div id="unity-footer">
+            <div id="unity-webgl-logo"></div>
+            <div id="unity-fullscreen-button"></div>
+            <div id="unity-build-title">PortalsOCV</div>
+        </div>
+    </div>
+    <script>
+        var container = document.querySelector("#unity-container");
+        var canvas = document.querySelector("#unity-canvas");
+        var loadingBar = document.querySelector("#unity-loading-bar");
+        var progressBarFull = document.querySelector("#unity-progress-bar-full");
+        var fullscreenButton = document.querySelector("#unity-fullscreen-button");
+        var warningBanner = document.querySelector("#unity-warning");
 
-  </head>
+        function unityShowBanner(msg, type) {
+            function updateBannerVisibility() {
+                warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+            }
+            var div = document.createElement('div');
+            div.innerHTML = msg;
+            warningBanner.appendChild(div);
+            if (type == 'error') div.style = 'background: red; padding: 10px;';
+            else {
+                if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+                setTimeout(function () {
+                    warningBanner.removeChild(div);
+                    updateBannerVisibility();
+                }, 5000);
+            }
+            updateBannerVisibility();
+        }
 
-  <body style="margin: 0px; overflow: hidden;">
-    <a-scene embedded arjs vr-mode-ui="enabled: false" copycanvas>
-      <div id="unityContainer" style="z-index: 2" ></div>
-      <!-- <a-marker preset="hiro"> <a-box></a-box> </a-marker> -->
-      <!-- <a-marker type="pattern" url="data/markers/pattern-arjs.patt"><a-box></a-box></a-marker> -->
-      <!-- <a-marker type="pattern" url="data/markers/test.patt" markercontroller="name : hiro"></a-marker> -->
+        var buildUrl = "Build";
+        var loaderUrl = buildUrl + "/Build.loader.js";
+        var config = {
+            dataUrl: buildUrl + "/Build.data",
+            frameworkUrl: buildUrl + "/Build.framework.js",
+            workerUrl: buildUrl + "/Build.worker.js",
+            codeUrl: buildUrl + "/Build.wasm",
+            streamingAssetsUrl: "StreamingAssets",
+            companyName: "DefaultCompany",
+            productName: "PortalsOCV",
+            productVersion: "0.1",
+            showBanner: unityShowBanner,
+        };
 
-			<a-marker type="pattern" url="data/markers\ArUco1.patt" markercontroller="name : ArUco1"></a-marker>
-			<a-marker type="pattern" url="data/markers\Hiro.patt" markercontroller="name : Hiro"></a-marker>
-			<a-marker type="pattern" url="data/markers\Nutty.patt" markercontroller="name : Nutty"></a-marker>
-			<a-marker type="pattern" url="data/markers\NuttyCardboard.patt" markercontroller="name : NuttyCardboard"></a-marker>
+        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+            var meta = document.createElement('meta');
+            meta.name = 'viewport';
+            meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+            document.getElementsByTagName('head')[0].appendChild(meta);
+            container.className = "unity-mobile";
+            canvas.className = "unity-mobile";
+        } else {
+            canvas.style.width = "960px";
+            canvas.style.height = "600px";
+        }
 
-      <a-entity camera cameratransform></a-entity>
-    </a-scene>
-  </body>
+        loadingBar.style.display = "block";
+
+        var script = document.createElement("script");
+        script.src = loaderUrl;
+        script.onload = () => {
+            createUnityInstance(canvas, config, (progress) => {
+                progressBarFull.style.width = 100 * progress + "%";
+            }).then((unityInstance) => {
+                loadingBar.style.display = "none";
+                fullscreenButton.onclick = () => {
+                    unityInstance.SetFullscreen(1);
+                };
+
+                // Start orientation listener after Unity loads
+                startOrientationListener(unityInstance);
+            }).catch((message) => {
+                alert(message);
+            });
+        };
+
+        document.body.appendChild(script);
+
+        // Device orientation and motion listener script
+        function startOrientationListener(gameInstance) {
+            window.addEventListener('deviceorientation', function (event) {
+                let alpha = event.alpha ? event.alpha * (Math.PI / 180) : 0;
+                let beta = event.beta ? event.beta * (Math.PI / 180) : 0;
+                let gamma = event.gamma ? event.gamma * (Math.PI / 180) : 0;
+
+                gameInstance.SendMessage('MobileCameraController', 'OnOrientationChange', `${alpha},${beta},${gamma}`);
+            });
+
+            window.addEventListener('devicemotion', function (event) {
+                let x = event.accelerationIncludingGravity.x || 0;
+                let y = event.accelerationIncludingGravity.y || 0;
+                let z = event.accelerationIncludingGravity.z || 0;
+
+                gameInstance.SendMessage('MobileCameraController', 'OnMotionChange', `${x},${y},${z}`);
+            });
+        }
+    </script>
+</body>
 </html>
