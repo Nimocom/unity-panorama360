@@ -23,6 +23,11 @@
             <div id="unity-build-title">PortalsOCV</div>
         </div>
     </div>
+
+    <!-- Permission request buttons for gyroscope and motion sensors -->
+    <button onclick="requestGyroscopePermissions()">Enable Gyroscope</button>
+    <button onclick="requestMotionPermissions()">Enable Motion</button>
+
     <script>
         var container = document.querySelector("#unity-container");
         var canvas = document.querySelector("#unity-canvas");
@@ -87,9 +92,8 @@
                 fullscreenButton.onclick = () => {
                     unityInstance.SetFullscreen(1);
                 };
-
-                // Start orientation listener after Unity loads
-                startOrientationListener(unityInstance);
+                // Start orientation and motion listener after Unity instance is created
+                window.gameInstance = unityInstance;
             }).catch((message) => {
                 alert(message);
             });
@@ -97,13 +101,46 @@
 
         document.body.appendChild(script);
 
-        // Device orientation and motion listener script
-        function startOrientationListener(gameInstance) {
+        // Request permissions for Gyroscope
+        function requestGyroscopePermissions() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then((response) => {
+                        if (response === 'granted') {
+                            startOrientationListener();
+                        } else {
+                            alert("Gyroscope permission denied.");
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                startOrientationListener();
+            }
+        }
+
+        // Request permissions for Motion sensors
+        function requestMotionPermissions() {
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission()
+                    .then((response) => {
+                        if (response === 'granted') {
+                            startOrientationListener();
+                        } else {
+                            alert("Motion permission denied.");
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                startOrientationListener();
+            }
+        }
+
+        // Start device orientation and motion listeners
+        function startOrientationListener() {
             window.addEventListener('deviceorientation', function (event) {
                 let alpha = event.alpha ? event.alpha * (Math.PI / 180) : 0;
                 let beta = event.beta ? event.beta * (Math.PI / 180) : 0;
                 let gamma = event.gamma ? event.gamma * (Math.PI / 180) : 0;
-
                 gameInstance.SendMessage('MobileCameraController', 'OnOrientationChange', `${alpha},${beta},${gamma}`);
             });
 
@@ -111,7 +148,6 @@
                 let x = event.accelerationIncludingGravity.x || 0;
                 let y = event.accelerationIncludingGravity.y || 0;
                 let z = event.accelerationIncludingGravity.z || 0;
-
                 gameInstance.SendMessage('MobileCameraController', 'OnMotionChange', `${x},${y},${z}`);
             });
         }
