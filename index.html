@@ -97,21 +97,39 @@
         };
         document.body.appendChild(script);
 
-        // Device Orientation Function
+        // Device Orientation Function with Permission Request
         function startDeviceOrientationListener(unityInstance) {
-            if (window.DeviceOrientationEvent) {
-                window.addEventListener('deviceorientation', function (event) {
-                    var tiltX = event.beta;   // In degrees, from -180 to 180
-                    var tiltY = event.gamma;  // In degrees, from -90 to 90
-                    var tiltZ = event.alpha;  // In degrees, 0 to 360
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                // iOS 13+ requires a user gesture to request device orientation permission
+                DeviceOrientationEvent.requestPermission()
+                    .then(response => {
+                        if (response === 'granted') {
+                            // Start listening to device orientation
+                            window.addEventListener('deviceorientation', function (event) {
+                                var tiltX = event.beta;
+                                var tiltY = event.gamma;
+                                var tiltZ = event.alpha;
 
-                    // Send the data to Unity's "AccelerationTest" script's "ReceiveOrientationData" method
+                                if (unityInstance != null && unityInstance.SendMessage) {
+                                    unityInstance.SendMessage('AccelerationTest', 'ReceiveOrientationData', `${tiltX},${tiltY},${tiltZ}`);
+                                }
+                            });
+                        } else {
+                            console.log("Device orientation permission denied.");
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                // For browsers that don't require permission
+                window.addEventListener('deviceorientation', function (event) {
+                    var tiltX = event.beta;
+                    var tiltY = event.gamma;
+                    var tiltZ = event.alpha;
+
                     if (unityInstance != null && unityInstance.SendMessage) {
                         unityInstance.SendMessage('AccelerationTest', 'ReceiveOrientationData', `${tiltX},${tiltY},${tiltZ}`);
                     }
                 });
-            } else {
-                console.log("Device orientation not supported on this device or browser.");
             }
         }
 
