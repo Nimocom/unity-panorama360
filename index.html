@@ -16,15 +16,20 @@
                 <div id="unity-progress-bar-full"></div>
             </div>
         </div>
-        <div id="unity-warning"> </div>
+        <div id="unity-warning"></div>
         <div id="unity-footer">
             <div id="unity-webgl-logo"></div>
             <div id="unity-fullscreen-button"></div>
             <div id="unity-build-title">PortalsOCV</div>
         </div>
     </div>
-    <script>
 
+    <!-- Button to request device orientation access -->
+    <div id="permission-request" style="text-align: center; margin-top: 20px;">
+        <button onclick="requestOrientationPermission()">Enable Device Orientation</button>
+    </div>
+
+    <script>
         var container = document.querySelector("#unity-container");
         var canvas = document.querySelector("#unity-canvas");
         var loadingBar = document.querySelector("#unity-loading-bar");
@@ -87,9 +92,9 @@
                 fullscreenButton.onclick = () => {
                     unityInstance.SetFullscreen(1);
                 };
-
-                // Start Device Orientation Listener
-                startDeviceOrientationListener(unityInstance);
+                // Hide the permission request button after loading completes
+                document.getElementById("permission-request").style.display = "block";
+                window.unityInstance = unityInstance;
 
             }).catch((message) => {
                 alert(message);
@@ -97,42 +102,38 @@
         };
         document.body.appendChild(script);
 
-        // Device Orientation Function with Permission Request
-        function startDeviceOrientationListener(unityInstance) {
+        // Function to request device orientation permission
+        function requestOrientationPermission() {
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                 // iOS 13+ requires a user gesture to request device orientation permission
                 DeviceOrientationEvent.requestPermission()
                     .then(response => {
                         if (response === 'granted') {
-                            // Start listening to device orientation
-                            window.addEventListener('deviceorientation', function (event) {
-                                var tiltX = event.beta;
-                                var tiltY = event.gamma;
-                                var tiltZ = event.alpha;
-
-                                if (unityInstance != null && unityInstance.SendMessage) {
-                                    unityInstance.SendMessage('AccelerationTest', 'ReceiveOrientationData', `${tiltX},${tiltY},${tiltZ}`);
-                                }
-                            });
+                            document.getElementById("permission-request").style.display = "none";
+                            startDeviceOrientationListener(window.unityInstance);
                         } else {
-                            console.log("Device orientation permission denied.");
+                            alert("Device orientation permission denied.");
                         }
                     })
                     .catch(console.error);
             } else {
                 // For browsers that don't require permission
-                window.addEventListener('deviceorientation', function (event) {
-                    var tiltX = event.beta;
-                    var tiltY = event.gamma;
-                    var tiltZ = event.alpha;
-
-                    if (unityInstance != null && unityInstance.SendMessage) {
-                        unityInstance.SendMessage('AccelerationTest', 'ReceiveOrientationData', `${tiltX},${tiltY},${tiltZ}`);
-                    }
-                });
+                startDeviceOrientationListener(window.unityInstance);
             }
         }
 
+        // Device Orientation Listener Function
+        function startDeviceOrientationListener(unityInstance) {
+            window.addEventListener('deviceorientation', function (event) {
+                var tiltX = event.beta;
+                var tiltY = event.gamma;
+                var tiltZ = event.alpha;
+
+                if (unityInstance != null && unityInstance.SendMessage) {
+                    unityInstance.SendMessage('AccelerationTest', 'ReceiveOrientationData', `${tiltX},${tiltY},${tiltZ}`);
+                }
+            });
+        }
     </script>
 </body>
 </html>
